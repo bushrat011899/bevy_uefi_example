@@ -1,0 +1,16 @@
+[package]
+name = "bevy_uefi_example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = "0.4.22"
+uefi = { version = "0.32.0", features = ["logger", "panic_handler", "global_allocator"] }
+
+bevy_ptr = { path = "../bevy/crates/bevy_ptr", default-features = false }
+bevy_utils = { path = "../bevy/crates/bevy_utils", default-features = false, features = ["alloc"] }
+bevy_ecs = { path = "../bevy/crates/bevy_ecs", default-features = false }
+bevy_app = { path = "../bevy/crates/bevy_app", default-features = false }
+
+[profile.release]
+panic="abort"
