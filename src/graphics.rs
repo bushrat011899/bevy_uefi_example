@@ -21,14 +21,13 @@ impl Plugin for GraphicsPlugin {
 
         app.insert_resource(Buffer::new(width, height))
             .insert_non_send_resource(gop)
-            .add_systems(
-                Last,
-                |buffer: Res<Buffer>, mut gop: NonSendMut<ScopedProtocol<GraphicsOutput>>| {
-                    if buffer.blit(&mut gop).is_err() {
-                        log::warn!("Failed to update graphics output");
-                    }
-                },
-            );
+            .add_systems(Last, update);
+    }
+}
+
+fn update(buffer: Res<Buffer>, mut gop: NonSendMut<ScopedProtocol<GraphicsOutput>>) {
+    if buffer.blit(&mut gop).is_err() {
+        log::warn!("Failed to update graphics output");
     }
 }
 

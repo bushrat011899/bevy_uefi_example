@@ -8,24 +8,23 @@ pub struct DiagnosticPlugin;
 
 impl Plugin for DiagnosticPlugin {
     fn build(&self, app: &mut bevy_app::App) {
-        app.insert_resource(Diagnostics {
-            frames: 0,
-            last_diagnostic: Instant::now(),
-        })
-        .add_systems(Last, |mut diagnostics: ResMut<Diagnostics>| {
-            diagnostics.frames += 1;
-            let diagnostic_period = diagnostics.last_diagnostic.elapsed();
+        app.insert_resource(Diagnostics::new())
+            .add_systems(Last, update);
+    }
+}
 
-            if diagnostic_period > Duration::from_secs(1) {
-                let frametime = diagnostic_period.as_secs_f32() / (diagnostics.frames as f32);
-                let fps = 1. / frametime;
+fn update(mut diagnostics: ResMut<Diagnostics>) {
+    diagnostics.frames += 1;
+    let diagnostic_period = diagnostics.last_diagnostic.elapsed();
 
-                log::info!("FPS: {fps}; Frame Time: {}ms", frametime * 1_000.);
+    if diagnostic_period > Duration::from_secs(1) {
+        let frametime = diagnostic_period.as_secs_f32() / (diagnostics.frames as f32);
+        let fps = 1. / frametime;
 
-                diagnostics.frames = 0;
-                diagnostics.last_diagnostic = Instant::now();
-            }
-        });
+        log::info!("FPS: {fps}; Frame Time: {}ms", frametime * 1_000.);
+
+        diagnostics.frames = 0;
+        diagnostics.last_diagnostic = Instant::now();
     }
 }
 
@@ -33,4 +32,13 @@ impl Plugin for DiagnosticPlugin {
 struct Diagnostics {
     frames: usize,
     last_diagnostic: Instant,
+}
+
+impl Diagnostics {
+    fn new() -> Self {
+        Self {
+            frames: 0,
+            last_diagnostic: Instant::now(),
+        }
+    }
 }

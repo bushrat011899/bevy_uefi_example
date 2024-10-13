@@ -8,10 +8,17 @@ pub struct TimePlugin;
 
 impl Plugin for TimePlugin {
     fn build(&self, app: &mut bevy_app::App) {
-        app.insert_resource(Time {
-            start_ticks: timer_tick(),
-        })
-        .add_systems(First, update_time);
+        app.insert_resource(Time::new()).add_systems(First, update);
+    }
+}
+
+fn update(time: Res<Time>) {
+    let ticks = timer_tick();
+    let runtime = Duration::from_nanos(ticks - time.start_ticks);
+
+    // SAFETY: Probably.
+    unsafe {
+        Instant::update(runtime);
     }
 }
 
@@ -20,13 +27,11 @@ struct Time {
     start_ticks: u64,
 }
 
-fn update_time(time: Res<Time>) {
-    let ticks = timer_tick();
-    let runtime = Duration::from_nanos(ticks - time.start_ticks);
-
-    // SAFETY: Probably.
-    unsafe {
-        Instant::update(runtime);
+impl Time {
+    fn new() -> Self {
+        Self {
+            start_ticks: timer_tick(),
+        }
     }
 }
 

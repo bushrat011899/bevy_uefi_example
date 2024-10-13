@@ -8,6 +8,7 @@ mod keyboard;
 mod pointer;
 mod time;
 
+use bevy_app::prelude::*;
 use bevy_ecs::{
     component::Component,
     event::EventReader,
@@ -16,15 +17,11 @@ use bevy_ecs::{
     system::{Commands, Query, ResMut},
 };
 use diagnostics::DiagnosticPlugin;
-use graphics::GraphicsPlugin;
-use graphics::{Buffer, Sprite};
-use keyboard::KeyEvent;
-use keyboard::KeyInputPlugin;
+use graphics::{Buffer, GraphicsPlugin, Sprite};
+use keyboard::{KeyEvent, KeyInputPlugin};
 use pointer::PointerPlugin;
 use time::TimePlugin;
 use uefi::proto::console::text::ScanCode;
-
-use bevy_app::prelude::*;
 
 pub struct BevyUefiExample;
 
@@ -39,6 +36,10 @@ impl Plugin for BevyUefiExample {
         ))
         .set_runner(|mut app| loop {
             app.update();
+
+            if let Some(exit) = app.should_exit() {
+                return exit;
+            }
         })
         .add_systems(Startup, (Buffer::clear, setup))
         .add_systems(Update, (move_player, Buffer::clear, render_sprites).chain());

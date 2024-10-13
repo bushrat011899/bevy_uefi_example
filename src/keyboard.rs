@@ -17,15 +17,13 @@ impl Plugin for KeyInputPlugin {
 
         app.add_event::<KeyEvent>()
             .insert_non_send_resource(text_input)
-            .add_systems(
-                First,
-                |mut input: NonSendMut<ScopedProtocol<Input>>,
-                 mut writer: EventWriter<KeyEvent>| {
-                    while let Ok(Some(key)) = input.read_key() {
-                        writer.send(KeyEvent { key });
-                    }
-                },
-            );
+            .add_systems(First, update);
+    }
+}
+
+fn update(mut input: NonSendMut<ScopedProtocol<Input>>, mut writer: EventWriter<KeyEvent>) {
+    while let Ok(Some(key)) = input.read_key() {
+        writer.send(KeyEvent { key });
     }
 }
 
