@@ -2,26 +2,23 @@
 
 extern crate alloc;
 
-mod buffer;
+mod graphics;
 mod diagnostics;
 mod keyboard;
 mod pointer;
 mod time;
 
 use bevy_ecs::{
-    component::Component,
-    event::EventReader,
-    query::With,
-    system::{Commands, Query, ResMut},
+    component::Component, event::EventReader, query::With, schedule::IntoSystemConfigs, system::{Commands, Query, ResMut}
 };
-use buffer::Buffer;
-use buffer::GraphicsPlugin;
+use graphics::{Buffer, Sprite};
+use graphics::GraphicsPlugin;
 use diagnostics::DiagnosticPlugin;
 use keyboard::KeyEvent;
 use keyboard::KeyInputPlugin;
 use pointer::PointerPlugin;
 use time::TimePlugin;
-use uefi::proto::console::{gop::BltPixel, text::ScanCode};
+use uefi::proto::console::text::ScanCode;
 
 use bevy_app::prelude::*;
 
@@ -29,8 +26,6 @@ pub struct BevyUefiExample;
 
 impl Plugin for BevyUefiExample {
     fn build(&self, app: &mut App) {
-        uefi::helpers::init().unwrap();
-
         app.add_plugins((
             GraphicsPlugin,
             TimePlugin,
@@ -42,25 +37,23 @@ impl Plugin for BevyUefiExample {
             app.update();
         })
         .add_systems(Startup, (Buffer::clear, setup))
-        .add_systems(Update, (move_player, render_points));
+        .add_systems(Update, (move_player, Buffer::clear, render_sprites).chain());
     }
 }
 
 fn setup(mut commands: Commands) {
+    const SPRITE_BYTES: &[u8] = include_bytes!("../assets/bevy_bird_dark.png");
+
     commands.spawn((
         Player,
         Position::default(),
-        Point {
-            color: BltPixel::new(0, 128, 0),
-        },
+        Sprite::from_png(SPRITE_BYTES),
     ));
 }
 
-fn render_points(mut buffer: ResMut<Buffer>, query: Query<(&Position, &Point)>) {
-    for (pos, point) in query.iter() {
-        if let Some(pixel) = buffer.pixel(pos.0, pos.1) {
-            *pixel = point.color;
-        }
+fn render_sprites(mut buffer: ResMut<Buffer>, query: Query<(&Position, &Sprite)>) {
+    for (pos, sprite) in query.iter() {
+        buffer.draw_sprite(sprite, (pos.0, pos.1));
     }
 }
 
@@ -107,11 +100,6 @@ fn move_player(
 
 #[derive(Component, Default)]
 struct Position(usize, usize);
-
-#[derive(Component)]
-struct Point {
-    color: BltPixel,
-}
 
 #[derive(Component)]
 struct Player;

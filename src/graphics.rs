@@ -1,7 +1,7 @@
 use alloc::vec;
 use alloc::vec::Vec;
 use bevy_app::{Last, Plugin};
-use bevy_ecs::system::{NonSendMut, Res, ResMut, Resource};
+use bevy_ecs::{component::Component, system::{NonSendMut, Res, ResMut, Resource}};
 use uefi::{
     boot::{self, ScopedProtocol},
     proto::console::gop::{BltOp, BltPixel, BltRegion, GraphicsOutput},
@@ -29,6 +29,48 @@ impl Plugin for GraphicsPlugin {
     }
 }
 
+#[derive(Component)]
+pub struct Sprite {
+    width: usize,
+    height: usize,
+    pixels: Vec<Option<BltPixel>>,
+}
+
+impl Sprite {
+    pub fn from_png(bytes: &[u8]) -> Self {
+        let (header, data) = png_decoder::decode(bytes).unwrap();
+
+        let width = header.width as usize;
+        let height = header.height as usize;
+
+        let mut pixels = Vec::with_capacity(width * height);
+
+        match (header.color_type, header.bit_depth) {
+            (png_decoder::ColorType::RgbAlpha, png_decoder::BitDepth::Eight) => {
+                let reds = data.iter().step_by(4);
+                let greens = data.iter().skip(1).step_by(4);
+                let blues = data.iter().skip(2).step_by(4);
+                let alphas = data.iter().skip(3).step_by(4);
+
+                for (((&r, &g), &b), &a) in reds.zip(greens).zip(blues).zip(alphas) {
+                    if a == 0 {
+                        pixels.push(None);
+                    } else {
+                        pixels.push(Some(BltPixel::new(r, g, b)));
+                    }
+                }
+            },
+            _ => unimplemented!(),
+        }
+
+        Self {
+            width,
+            height,
+            pixels,
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct Buffer {
     width: usize,
@@ -53,6 +95,10 @@ impl Buffer {
 
     /// Get a single pixel.
     pub fn pixel(&mut self, x: usize, y: usize) -> Option<&mut BltPixel> {
+        if x > self.width || y > self.height {
+            return None
+        }
+        
         self.pixels.get_mut(y * self.width + x)
     }
 
@@ -76,6 +122,20 @@ impl Buffer {
                 pixel.red = 0;
                 pixel.green = 0;
                 pixel.blue = 0;
+            }
+        }
+    }
+
+    pub fn draw_sprite(&mut self, sprite: &Sprite, pos: (usize, usize)) {
+        let (width, height) = (sprite.width, sprite.height);
+
+        for y in 0..height {
+            for x in 0..width {
+                let &pixel = sprite.pixels.get(y * sprite.width + x).unwrap();
+                let Some(color) = pixel else { continue };
+                let Some(pixel) = self.pixel(x + pos.0, y + pos.1) else { continue };
+
+                *pixel = color;
             }
         }
     }
