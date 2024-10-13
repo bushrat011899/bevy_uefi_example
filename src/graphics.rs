@@ -1,7 +1,10 @@
 use alloc::vec;
 use alloc::vec::Vec;
 use bevy_app::{Last, Plugin};
-use bevy_ecs::{component::Component, system::{NonSendMut, Res, ResMut, Resource}};
+use bevy_ecs::{
+    component::Component,
+    system::{NonSendMut, Res, ResMut, Resource},
+};
 use uefi::{
     boot::{self, ScopedProtocol},
     proto::console::gop::{BltOp, BltPixel, BltRegion, GraphicsOutput},
@@ -59,7 +62,7 @@ impl Sprite {
                         pixels.push(Some(BltPixel::new(r, g, b)));
                     }
                 }
-            },
+            }
             _ => unimplemented!(),
         }
 
@@ -96,9 +99,9 @@ impl Buffer {
     /// Get a single pixel.
     pub fn pixel(&mut self, x: usize, y: usize) -> Option<&mut BltPixel> {
         if x > self.width || y > self.height {
-            return None
+            return None;
         }
-        
+
         self.pixels.get_mut(y * self.width + x)
     }
 
@@ -133,7 +136,9 @@ impl Buffer {
             for x in 0..width {
                 let &pixel = sprite.pixels.get(y * sprite.width + x).unwrap();
                 let Some(color) = pixel else { continue };
-                let Some(pixel) = self.pixel(x + pos.0, y + pos.1) else { continue };
+                let Some(pixel) = self.pixel(x + pos.0, y + pos.1) else {
+                    continue;
+                };
 
                 *pixel = color;
             }

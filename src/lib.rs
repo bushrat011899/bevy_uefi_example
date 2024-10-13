@@ -2,18 +2,22 @@
 
 extern crate alloc;
 
-mod graphics;
 mod diagnostics;
+mod graphics;
 mod keyboard;
 mod pointer;
 mod time;
 
 use bevy_ecs::{
-    component::Component, event::EventReader, query::With, schedule::IntoSystemConfigs, system::{Commands, Query, ResMut}
+    component::Component,
+    event::EventReader,
+    query::With,
+    schedule::IntoSystemConfigs,
+    system::{Commands, Query, ResMut},
 };
-use graphics::{Buffer, Sprite};
-use graphics::GraphicsPlugin;
 use diagnostics::DiagnosticPlugin;
+use graphics::GraphicsPlugin;
+use graphics::{Buffer, Sprite};
 use keyboard::KeyEvent;
 use keyboard::KeyInputPlugin;
 use pointer::PointerPlugin;
@@ -44,11 +48,7 @@ impl Plugin for BevyUefiExample {
 fn setup(mut commands: Commands) {
     const SPRITE_BYTES: &[u8] = include_bytes!("../assets/bevy_bird_dark.png");
 
-    commands.spawn((
-        Player,
-        Position::default(),
-        Sprite::from_png(SPRITE_BYTES),
-    ));
+    commands.spawn((Player, Position::default(), Sprite::from_png(SPRITE_BYTES)));
 }
 
 fn render_sprites(mut buffer: ResMut<Buffer>, query: Query<(&Position, &Sprite)>) {

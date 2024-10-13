@@ -6,7 +6,7 @@ extern crate alloc;
 #[uefi::entry]
 fn main() -> uefi::Status {
     use bevy_app::AppExit::{Error, Success};
-    
+
     uefi::helpers::init().unwrap();
 
     let result = bevy_app::App::new()
