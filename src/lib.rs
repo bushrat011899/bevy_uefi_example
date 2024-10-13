@@ -9,9 +9,10 @@ mod pointer;
 mod time;
 
 use bevy_ecs::{
-    change_detection::DetectChanges,
+    component::Component,
     event::EventReader,
-    system::{Res, ResMut, Resource},
+    query::With,
+    system::{Commands, Query, ResMut},
 };
 use buffer::Buffer;
 use buffer::GraphicsPlugin;
@@ -40,74 +41,77 @@ impl Plugin for BevyUefiExample {
         .set_runner(|mut app| loop {
             app.update();
         })
-        .init_resource::<BackgroundColor>()
-        .add_systems(Startup, Buffer::clear)
-        .add_systems(Update, (update_background, set_background));
+        .add_systems(Startup, (Buffer::clear, setup))
+        .add_systems(Update, (move_player, render_points));
     }
 }
 
-fn set_background(mut buffer: ResMut<Buffer>, background_color: Res<BackgroundColor>) {
-    let (width, height) = buffer.size();
+fn setup(mut commands: Commands) {
+    commands.spawn((
+        Player,
+        Position::default(),
+        Point {
+            color: BltPixel::new(0, 128, 0),
+        },
+    ));
+}
 
-    if background_color.is_changed() {
-        let &BackgroundColor(color) = background_color.as_ref();
-
-        for y in 0..height {
-            for x in 0..width {
-                let pixel = buffer.pixel(x, y).unwrap();
-                *pixel = color;
-            }
+fn render_points(mut buffer: ResMut<Buffer>, query: Query<(&Position, &Point)>) {
+    for (pos, point) in query.iter() {
+        if let Some(pixel) = buffer.pixel(pos.0, pos.1) {
+            *pixel = point.color;
         }
     }
 }
 
-fn update_background(
+fn move_player(
     mut key_events: EventReader<KeyEvent>,
-    mut background_color: ResMut<BackgroundColor>,
+    mut query: Query<&mut Position, With<Player>>,
 ) {
-    use uefi::proto::console::text::Key::{Printable, Special};
+    use uefi::proto::console::text::Key::Special;
+
+    let (mut dy, mut dx): (isize, isize) = (0, 0);
 
     for event in key_events.read() {
         match event.key {
-            Printable(char16) => {
-                if char16 == '1' {
-                    background_color.0 = BltPixel::new(0, 0, 0);
-                } else if char16 == '2' {
-                    background_color.0 = BltPixel::new(255, 255, 255);
-                } else if char16 == '3' {
-                    background_color.0 = BltPixel::new(128, 0, 0);
-                } else if char16 == '4' {
-                    background_color.0 = BltPixel::new(0, 128, 0);
-                } else if char16 == '5' {
-                    background_color.0 = BltPixel::new(0, 0, 128);
-                }
-            }
             Special(ScanCode::UP) => {
-                background_color.0.red = background_color.0.red.saturating_add(1);
-                background_color.0.green = background_color.0.green.saturating_add(1);
-                background_color.0.blue = background_color.0.blue.saturating_add(1);
+                dy -= 1;
             }
             Special(ScanCode::DOWN) => {
-                background_color.0.red = background_color.0.red.saturating_sub(1);
-                background_color.0.green = background_color.0.green.saturating_sub(1);
-                background_color.0.blue = background_color.0.blue.saturating_sub(1);
+                dy += 1;
+            }
+            Special(ScanCode::LEFT) => {
+                dx -= 1;
+            }
+            Special(ScanCode::RIGHT) => {
+                dx += 1;
             }
             _ => {}
         }
     }
-}
 
-#[derive(Resource, Clone, Copy)]
-struct BackgroundColor(BltPixel);
+    for mut player in query.iter_mut() {
+        player.0 = if dx > 0 {
+            player.0.saturating_add(dx as usize)
+        } else {
+            player.0.saturating_sub(-dx as usize)
+        };
 
-impl Default for BackgroundColor {
-    fn default() -> Self {
-        Self::new()
+        player.1 = if dy > 0 {
+            player.1.saturating_add(dy as usize)
+        } else {
+            player.1.saturating_sub(-dy as usize)
+        };
     }
 }
 
-impl BackgroundColor {
-    const fn new() -> Self {
-        Self(BltPixel::new(0, 0, 0))
-    }
+#[derive(Component, Default)]
+struct Position(usize, usize);
+
+#[derive(Component)]
+struct Point {
+    color: BltPixel,
 }
+
+#[derive(Component)]
+struct Player;
