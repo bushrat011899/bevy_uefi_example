@@ -71,6 +71,10 @@ impl Sprite {
             pixels,
         }
     }
+
+    pub const fn width(&self) -> usize { self.width }
+    pub const fn height(&self) -> usize { self.height }
+
 }
 
 #[derive(Resource)]

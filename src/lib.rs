@@ -14,7 +14,7 @@ use bevy_ecs::{
     event::EventReader,
     query::With,
     schedule::IntoSystemConfigs,
-    system::{Commands, Query, ResMut},
+    system::{Commands, Query, Res, ResMut},
 };
 use diagnostics::DiagnosticPlugin;
 use graphics::{Buffer, GraphicsPlugin, Sprite};
@@ -42,14 +42,14 @@ impl Plugin for BevyUefiExample {
             }
         })
         .add_systems(Startup, (Buffer::clear, setup))
-        .add_systems(Update, (move_player, Buffer::clear, render_sprites).chain());
+        .add_systems(Update, (move_player, bounce_sprites, apply_velocity, Buffer::clear, render_sprites).chain());
     }
 }
 
 fn setup(mut commands: Commands) {
     const SPRITE_BYTES: &[u8] = include_bytes!("../assets/bevy_bird_dark.png");
 
-    commands.spawn((Player, Position::default(), Sprite::from_png(SPRITE_BYTES)));
+    commands.spawn((Player, Position::default(), Velocity(2, 1), Sprite::from_png(SPRITE_BYTES)));
 }
 
 fn render_sprites(mut buffer: ResMut<Buffer>, query: Query<(&Position, &Sprite)>) {
@@ -58,9 +58,47 @@ fn render_sprites(mut buffer: ResMut<Buffer>, query: Query<(&Position, &Sprite)>
     }
 }
 
+fn apply_velocity(mut query: Query<(&mut Position, &Velocity)>) {
+    for (mut position, velocity) in query.iter_mut() {
+        position.0 = if velocity.0 > 0 {
+            position.0.saturating_add(velocity.0 as usize)
+        } else {
+            position.0.saturating_sub(-velocity.0 as usize)
+        };
+
+        position.1 = if velocity.1 > 0 {
+            position.1.saturating_add(velocity.1 as usize)
+        } else {
+            position.1.saturating_sub(-velocity.1 as usize)
+        };
+    }
+}
+
+fn bounce_sprites(mut query: Query<(&Position, &mut Velocity, &Sprite)>, buffer: Res<Buffer>) {
+    let (max_x, max_y) = buffer.size();
+
+    for (position, mut velocity, sprite) in query.iter_mut() {
+        if position.0 + sprite.width() > max_x && velocity.0 > 0 {
+            velocity.0 = -velocity.0;
+        }
+
+        if position.0 == 0 && velocity.0 < 0 {
+            velocity.0 = -velocity.0;
+        }
+
+        if position.1 + sprite.height() > max_y && velocity.1 > 0 {
+            velocity.1 = -velocity.1;
+        }
+
+        if position.1 == 0 && velocity.1 < 0 {
+            velocity.1 = -velocity.1;
+        }
+    }
+}
+
 fn move_player(
     mut key_events: EventReader<KeyEvent>,
-    mut query: Query<&mut Position, With<Player>>,
+    mut query: Query<&mut Velocity, With<Player>>,
 ) {
     use uefi::proto::console::text::Key::Special;
 
@@ -84,23 +122,17 @@ fn move_player(
         }
     }
 
-    for mut player in query.iter_mut() {
-        player.0 = if dx > 0 {
-            player.0.saturating_add(dx as usize)
-        } else {
-            player.0.saturating_sub(-dx as usize)
-        };
-
-        player.1 = if dy > 0 {
-            player.1.saturating_add(dy as usize)
-        } else {
-            player.1.saturating_sub(-dy as usize)
-        };
+    for mut velocity in query.iter_mut() {
+        velocity.0 += dx;
+        velocity.1 += dy;
     }
 }
 
 #[derive(Component, Default)]
 struct Position(usize, usize);
+
+#[derive(Component, Default)]
+struct Velocity(isize, isize);
 
 #[derive(Component)]
 struct Player;
